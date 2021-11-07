@@ -58,7 +58,6 @@ command.
 Enjoy!
 
 # Infrastructure Diagram
-
 ![Infrastructure Diagram](./diagrams/yearn_simulation_bot.png)
 
 # First Time Setup
