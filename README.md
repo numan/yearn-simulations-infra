@@ -56,3 +56,51 @@ command.
  * `cdk docs`        open CDK documentation
 
 Enjoy!
+
+# First Time Setup
+
+This section will guide you through setting up your infrastructure for the simulation bot.
+
+The infrastructure is defined using **[AWS Cloud Development Kit (AWS CDK)](https://aws.amazon.com/cdk/)**. AWS CDK is an open source software development framework to define your cloud application resources using familiar programming languages.
+
+These definitions can then be synthesized to AWS CloudFormation Templates which can be deployed AWS.
+
+## Initial Setup
+
+Follow the steps to bootstrap your AWS Account to work with AWS CDK:
+
+1. [Prerequisites](https://docs.aws.amazon.com/cdk/latest/guide/getting_started.html#getting_started_prerequisites) 
+2. [Install AWS CDK Locally](https://docs.aws.amazon.com/cdk/latest/guide/getting_started.html#getting_started_install)
+3. [Bootstrapping](https://docs.aws.amazon.com/cdk/latest/guide/getting_started.html#getting_started_bootstrap)
+
+The infrastructure in this repository requires a VPC with at least one public subnet. If you don't have a VPC that meets this criteria or want to provision a new VPC for this project, you can follow the instructions [here](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/create-public-private-vpc.html).
+
+## Creating the Infrastructure for the First Time
+
+You can use the `cdk-deploy-to.sh` script to deploy the infrastructure for the first time and any subsequent updates to the infrastructure.
+
+Usage:
+
+```bash
+> ./cdk-deploy-to.sh <AWS Account ID> <AWS Region> <AWS VPC ID>
+```
+
+Example:
+
+```bash
+> ./cdk-deploy-to.sh 1111111111 us-east-1 vpc-11111111
+```
+
+## Initializing Secrets
+
+One of the resources created during the creation process is a **AWS Secrets Store**. Navigate to the newly created secrets store and modify the following values in the **Secret value** section:
+
+1. TELEGRAM_YFI_HARVEST_SIMULATOR
+2. WEB3_INFURA_PROJECT_ID
+3. INFURA_ID
+4. TELEGRAM_BOT_KEY
+5. POLLER_KEY
+
+## Deploy
+
+Follow the instructions in https://github.com/yearn/yearn-simulations repo.
