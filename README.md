@@ -104,3 +104,11 @@ One of the resources created during the creation process is a **AWS Secrets Stor
 ## Deploy
 
 Follow the instructions in https://github.com/yearn/yearn-simulations repo.
+
+## Destroying The Environment
+
+You can destroy the environment using CDK:
+
+```bash
+> CDK_DEPLOY_VPC="vpc-11111111" CDK_DEPLOY_ACCOUNT="1111111111" CDK_DEPLOY_REGION="us-east-1" cdk destroy
+```
