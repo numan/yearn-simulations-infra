@@ -3,14 +3,41 @@ import json
 import aws_cdk.aws_ec2 as ec2
 import aws_cdk.aws_ecr as ecr
 import aws_cdk.aws_ecs as ecs
+import aws_cdk.aws_ecs_patterns as ecs_patterns
+import aws_cdk.aws_applicationautoscaling as app_autoscaling
 import aws_cdk.aws_logs as logs
 import aws_cdk.aws_secretsmanager as secrets
 from aws_cdk import core as cdk
 
 
-class YearnSimulationsInfraStack(cdk.Stack):
+class SharedStack(cdk.Stack):
+    @property
+    def log_group(self):
+        return self._log_group
+
+    @property
+    def container_repo(self):
+        return self._container_repository
+
+    def __init__(self, scope: cdk.Construct, construct_id: str, **kwargs) -> None:
+        super().__init__(scope, construct_id, **kwargs)
+
+        self._log_group = logs.LogGroup(
+            self, "YearnBotsLogGroup", retention=logs.RetentionDays.ONE_MONTH
+        )
+
+        self._container_repository = ecr.Repository(self, "SimScheduledTasksRepository")
+
+
+class YearnSimScheduledTasksInfraStack(cdk.Stack):
     def __init__(
-        self, scope: cdk.Construct, construct_id: str, vpc_id: str, **kwargs
+        self,
+        scope: cdk.Construct,
+        construct_id: str,
+        vpc_id: str,
+        log_group: logs.LogGroup,
+        container_repo: ecr.Repository,
+        **kwargs
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
@@ -38,9 +65,142 @@ class YearnSimulationsInfraStack(cdk.Stack):
             ),
         )
 
-        # Configure logging
-        self._log_group = logs.LogGroup(
-            self, "YearnSimulations", retention=logs.RetentionDays.ONE_MONTH
+        # General ECS Cluster
+        self._yearn_sim_tasks_ecs_cluster = self._create_yearn_sim_tasks_ecs_cluster(
+            self._vpc
+        )
+
+        # All scheduled tasks:
+        scheduled_tasks = [
+            ecs_patterns.ScheduledFargateTask(
+                self,
+                "BribeBotTask",
+                cluster=self._yearn_sim_tasks_ecs_cluster,
+                scheduled_fargate_task_image_options=ecs_patterns.ScheduledFargateTaskImageOptions(
+                    image=ecs.ContainerImage.from_registry("amazon/amazon-ecs-sample"),
+                    log_driver=ecs.AwsLogDriver(
+                        log_group=log_group,
+                        stream_prefix="BribeBotTask",
+                        mode=ecs.AwsLogDriverMode.NON_BLOCKING,
+                    ),
+                    command=["brownie", "run", "bribe_bot"],
+                    memory_limit_mib=1024,
+                ),
+                schedule=app_autoscaling.Schedule.cron(minute="0", hour="16"),  # Every day at 4pm
+                platform_version=ecs.FargatePlatformVersion.LATEST,
+                subnet_selection=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC),
+            ),
+            ecs_patterns.ScheduledFargateTask(
+                self,
+                "FTMBot",
+                cluster=self._yearn_sim_tasks_ecs_cluster,
+                scheduled_fargate_task_image_options=ecs_patterns.ScheduledFargateTaskImageOptions(
+                    image=ecs.ContainerImage.from_registry("amazon/amazon-ecs-sample"),
+                    log_driver=ecs.AwsLogDriver(
+                        log_group=log_group,
+                        stream_prefix="FTMBot",
+                        mode=ecs.AwsLogDriverMode.NON_BLOCKING,
+                    ),
+                    command=["brownie", "run", "ftm_bot"],
+                    memory_limit_mib=1024,
+                ),
+                schedule=app_autoscaling.Schedule.cron(
+                    minute="0", hour="0,12"
+                ),  # Every day at midnight and noon
+                platform_version=ecs.FargatePlatformVersion.LATEST,
+                subnet_selection=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC),
+            ),
+            ecs_patterns.ScheduledFargateTask(
+                self,
+                "SSCBot",
+                cluster=self._yearn_sim_tasks_ecs_cluster,
+                scheduled_fargate_task_image_options=ecs_patterns.ScheduledFargateTaskImageOptions(
+                    image=ecs.ContainerImage.from_registry("amazon/amazon-ecs-sample"),
+                    log_driver=ecs.AwsLogDriver(
+                        log_group=log_group,
+                        stream_prefix="SSCBot",
+                        mode=ecs.AwsLogDriverMode.NON_BLOCKING,
+                    ),
+                    command=["brownie", "run", "ssc_bot"],
+                    memory_limit_mib=1024,
+                ),
+                schedule=app_autoscaling.Schedule.cron(
+                    minute="0", hour="0,8,16"
+                ),  # Every day at midnight, 8am and 4pm
+                platform_version=ecs.FargatePlatformVersion.LATEST,
+                subnet_selection=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC),
+            ),
+            ecs_patterns.ScheduledFargateTask(
+                self,
+                "CreditsAvailableBot",
+                cluster=self._yearn_sim_tasks_ecs_cluster,
+                scheduled_fargate_task_image_options=ecs_patterns.ScheduledFargateTaskImageOptions(
+                    image=ecs.ContainerImage.from_registry("amazon/amazon-ecs-sample"),
+                    log_driver=ecs.AwsLogDriver(
+                        log_group=log_group,
+                        stream_prefix="CreditsAvailableBot",
+                        mode=ecs.AwsLogDriverMode.NON_BLOCKING,
+                    ),
+                    command=["brownie", "run", "credits_available"],
+                    memory_limit_mib=1024,
+                ),
+                schedule=app_autoscaling.Schedule.cron(
+                    minute="30", hour="16"
+                ),  # Every day at midnight, 8am and 4pm
+                platform_version=ecs.FargatePlatformVersion.LATEST,
+                subnet_selection=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC),
+            ),
+        ]
+
+        # Permissions
+        for scheduled_task in scheduled_tasks:
+            container_repo.grant_pull(
+                scheduled_task.task_definition.obtain_execution_role()
+            )
+
+    def _create_yearn_sim_tasks_ecs_cluster(self, vpc: ec2.IVpc):
+        return ecs.Cluster(
+            self,
+            "YearnSimScheduledTasksCluster",
+            enable_fargate_capacity_providers=True,
+            vpc=vpc,
+        )
+
+
+class YearnSimulationsInfraStack(cdk.Stack):
+    def __init__(
+        self,
+        scope: cdk.Construct,
+        construct_id: str,
+        vpc_id: str,
+        log_group: logs.LogGroup,
+        container_repo: ecr.Repository,
+        **kwargs
+    ) -> None:
+        super().__init__(scope, construct_id, **kwargs)
+
+        # The code that defines your stack goes here
+        self._vpc = ec2.Vpc.from_lookup(
+            self,
+            "VPCResource",
+            vpc_id=vpc_id,
+        )
+
+        self._secrets_manager = secrets.Secret(
+            self,
+            "YearnSimulationsSecrets",
+            generate_secret_string=secrets.SecretStringGenerator(
+                secret_string_template=json.dumps(
+                    {
+                        "TELEGRAM_BOT_KEY": "",
+                        "POLLER_KEY": "",
+                        "TELEGRAM_YFI_HARVEST_SIMULATOR": "",
+                        "INFURA_ID": "",
+                        "WEB3_INFURA_PROJECT_ID": "",
+                    }
+                ),
+                generate_string_key="password",  # Needed just to we can provision secrets manager with a template. Not used.
+            ),
         )
 
         # General ECS Cluster
@@ -48,16 +208,13 @@ class YearnSimulationsInfraStack(cdk.Stack):
             self._create_yearn_simulations_ecs_cluster(self._vpc)
         )
 
-        # Create a repository where we can store all our containers
-        self._repository = ecr.Repository(self, "SimulationsRepository")
-
         # Create Services
 
         ## Create a service for the simulator bot
         self._create_simulator_bot_fargate_service(
             self._yearn_simulations_ecs_cluster,
-            self._repository,
-            self._log_group,
+            container_repo,
+            log_group,
             self._secrets_manager,
         )
 

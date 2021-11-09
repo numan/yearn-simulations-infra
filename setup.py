@@ -23,7 +23,9 @@ setuptools.setup(
         "aws-cdk.aws-ec2==1.130.0",
         "aws-cdk.aws-ecs==1.130.0", 
         "aws-cdk.aws-ecr==1.130.0", 
-        "aws-cdk.aws-secretsmanager==1.130.0"
+        "aws-cdk.aws-secretsmanager==1.130.0",
+        "aws-cdk.aws-ecs-patterns==1.130.0",
+        "aws-cdk.aws-applicationautoscaling==1.130.0"
     ],
 
     python_requires=">=3.6",
