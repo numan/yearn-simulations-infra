@@ -96,7 +96,7 @@ Example:
 
 ## Initializing Secrets
 
-One of the resources created during the creation process is a **AWS Secrets Store**. Navigate to the newly created secrets store and modify the following values in the **Secret value** section:
+One of the resources created during the creation process is a **AWS Secrets Store**. Navigate to the newly created secrets store and modify the following values in the **Secret value** section for the Harvest Simulation Bot:
 
 1. TELEGRAM_YFI_HARVEST_SIMULATOR
 2. WEB3_INFURA_PROJECT_ID
@@ -104,6 +104,16 @@ One of the resources created during the creation process is a **AWS Secrets Stor
 4. TELEGRAM_BOT_KEY
 5. POLLER_KEY
 
+And the following secrets for the scheduled bots:
+1. INFURA_ID
+2. WEB3_INFURA_PROJECT_ID
+3. TELEGRAM_YFI_DEV_BOT
+4. TELEGRAM_CHAT_ID_BRIBE
+5. FTM_BOT_KEY
+6. FTM_GROUP
+7. SSC_BOT_KEY
+8. PROD_GROUP
+9. TELEGRAM_CHAT_ID_CREDIT_TRACKER
 ## Deploy
 
 Follow the instructions in https://github.com/yearn/yearn-simulations repo.
