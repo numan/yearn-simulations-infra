@@ -50,15 +50,23 @@ class YearnSimScheduledTasksInfraStack(cdk.Stack):
 
         self._secrets_manager = secrets.Secret(
             self,
-            "YearnSimulationsSecrets",
+            "YearnSimScheduledTasksSecrets",
             generate_secret_string=secrets.SecretStringGenerator(
                 secret_string_template=json.dumps(
                     {
-                        "TELEGRAM_BOT_KEY": "",
-                        "POLLER_KEY": "",
-                        "TELEGRAM_YFI_HARVEST_SIMULATOR": "",
                         "INFURA_ID": "",
                         "WEB3_INFURA_PROJECT_ID": "",
+                        ## Bribe Bot
+                        "TELEGRAM_YFI_DEV_BOT": "",
+                        "TELEGRAM_CHAT_ID_BRIBE": "",
+                        ## FTM Bot
+                        "FTM_BOT_KEY": "",
+                        "FTM_GROUP": "",
+                        ## SSC Bot
+                        "SSC_BOT_KEY": "",
+                        "PROD_GROUP": "",
+                        ## Credit Available
+                        "TELEGRAM_CHAT_ID_CREDIT_TRACKER": "",
                     }
                 ),
                 generate_string_key="password",  # Needed just to we can provision secrets manager with a template. Not used.
@@ -69,6 +77,37 @@ class YearnSimScheduledTasksInfraStack(cdk.Stack):
         self._yearn_sim_tasks_ecs_cluster = self._create_yearn_sim_tasks_ecs_cluster(
             self._vpc
         )
+
+        environment= {
+            "ENV": "PROD",
+            "USE_DYNAMIC_LOOKUP": "True",
+        }
+        container_secrets = {
+            "INFURA_ID": ecs.Secret.from_secrets_manager(
+                self._secrets_manager, "INFURA_ID"
+            ),
+            "WEB3_INFURA_PROJECT_ID": ecs.Secret.from_secrets_manager(
+                self._secrets_manager, "WEB3_INFURA_PROJECT_ID"
+            ),
+            "TELEGRAM_YFI_DEV_BOT": ecs.Secret.from_secrets_manager(
+                self._secrets_manager, "TELEGRAM_YFI_DEV_BOT"
+            ),
+            "TELEGRAM_CHAT_ID_BRIBE": ecs.Secret.from_secrets_manager(
+                self._secrets_manager, "TELEGRAM_CHAT_ID_BRIBE"
+            ),
+            "FTM_BOT_KEY": ecs.Secret.from_secrets_manager(
+                self._secrets_manager, "FTM_BOT_KEY"
+            ),
+            "SSC_BOT_KEY": ecs.Secret.from_secrets_manager(
+                self._secrets_manager, "SSC_BOT_KEY"
+            ),
+            "PROD_GROUP": ecs.Secret.from_secrets_manager(
+                self._secrets_manager, "PROD_GROUP"
+            ),
+            "TELEGRAM_CHAT_ID_CREDIT_TRACKER": ecs.Secret.from_secrets_manager(
+                self._secrets_manager, "TELEGRAM_CHAT_ID_CREDIT_TRACKER"
+            ),
+        }
 
         # All scheduled tasks:
         scheduled_tasks = [
@@ -83,10 +122,14 @@ class YearnSimScheduledTasksInfraStack(cdk.Stack):
                         stream_prefix="BribeBotTask",
                         mode=ecs.AwsLogDriverMode.NON_BLOCKING,
                     ),
+                    environment=environment,
+                    secrets=container_secrets,
                     command=["brownie", "run", "bribe_bot"],
                     memory_limit_mib=1024,
                 ),
-                schedule=app_autoscaling.Schedule.cron(minute="0", hour="16"),  # Every day at 4pm
+                schedule=app_autoscaling.Schedule.cron(
+                    minute="0", hour="16"
+                ),  # Every day at 4pm
                 platform_version=ecs.FargatePlatformVersion.LATEST,
                 subnet_selection=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC),
             ),
@@ -101,6 +144,8 @@ class YearnSimScheduledTasksInfraStack(cdk.Stack):
                         stream_prefix="FTMBot",
                         mode=ecs.AwsLogDriverMode.NON_BLOCKING,
                     ),
+                    environment=environment,
+                    secrets=container_secrets,
                     command=["brownie", "run", "ftm_bot"],
                     memory_limit_mib=1024,
                 ),
@@ -121,6 +166,8 @@ class YearnSimScheduledTasksInfraStack(cdk.Stack):
                         stream_prefix="SSCBot",
                         mode=ecs.AwsLogDriverMode.NON_BLOCKING,
                     ),
+                    environment=environment,
+                    secrets=container_secrets,
                     command=["brownie", "run", "ssc_bot"],
                     memory_limit_mib=1024,
                 ),
@@ -141,6 +188,8 @@ class YearnSimScheduledTasksInfraStack(cdk.Stack):
                         stream_prefix="CreditsAvailableBot",
                         mode=ecs.AwsLogDriverMode.NON_BLOCKING,
                     ),
+                    environment=environment,
+                    secrets=container_secrets,
                     command=["brownie", "run", "credits_available"],
                     memory_limit_mib=1024,
                 ),
