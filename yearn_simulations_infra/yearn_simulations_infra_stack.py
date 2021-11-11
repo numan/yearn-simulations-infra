@@ -27,6 +27,9 @@ class SharedStack(cdk.Stack):
         )
 
         self._container_repository = ecr.Repository(self, "SimScheduledTasksRepository")
+        self._container_repository.add_lifecycle_rule(
+            tag_status=ecr.TagStatus.UNTAGGED, max_image_age=cdk.Duration.days(7)
+        )
 
 
 class YearnSimScheduledTasksInfraStack(cdk.Stack):
@@ -78,7 +81,7 @@ class YearnSimScheduledTasksInfraStack(cdk.Stack):
             self._vpc
         )
 
-        environment= {
+        environment = {
             "ENV": "PROD",
             "USE_DYNAMIC_LOOKUP": "True",
         }
@@ -116,7 +119,9 @@ class YearnSimScheduledTasksInfraStack(cdk.Stack):
                 "BribeBotTask",
                 cluster=self._yearn_sim_tasks_ecs_cluster,
                 scheduled_fargate_task_image_options=ecs_patterns.ScheduledFargateTaskImageOptions(
-                    image=ecs.ContainerImage.from_registry("amazon/amazon-ecs-sample"),
+                    image=ecs.ContainerImage.from_ecr_repository(
+                        container_repo, "latest"
+                    ),
                     log_driver=ecs.AwsLogDriver(
                         log_group=log_group,
                         stream_prefix="BribeBotTask",
@@ -138,7 +143,9 @@ class YearnSimScheduledTasksInfraStack(cdk.Stack):
                 "FTMBot",
                 cluster=self._yearn_sim_tasks_ecs_cluster,
                 scheduled_fargate_task_image_options=ecs_patterns.ScheduledFargateTaskImageOptions(
-                    image=ecs.ContainerImage.from_registry("amazon/amazon-ecs-sample"),
+                    image=ecs.ContainerImage.from_ecr_repository(
+                        container_repo, "latest"
+                    ),
                     log_driver=ecs.AwsLogDriver(
                         log_group=log_group,
                         stream_prefix="FTMBot",
@@ -160,7 +167,9 @@ class YearnSimScheduledTasksInfraStack(cdk.Stack):
                 "SSCBot",
                 cluster=self._yearn_sim_tasks_ecs_cluster,
                 scheduled_fargate_task_image_options=ecs_patterns.ScheduledFargateTaskImageOptions(
-                    image=ecs.ContainerImage.from_registry("amazon/amazon-ecs-sample"),
+                    image=ecs.ContainerImage.from_ecr_repository(
+                        container_repo, "latest"
+                    ),
                     log_driver=ecs.AwsLogDriver(
                         log_group=log_group,
                         stream_prefix="SSCBot",
@@ -182,7 +191,9 @@ class YearnSimScheduledTasksInfraStack(cdk.Stack):
                 "CreditsAvailableBot",
                 cluster=self._yearn_sim_tasks_ecs_cluster,
                 scheduled_fargate_task_image_options=ecs_patterns.ScheduledFargateTaskImageOptions(
-                    image=ecs.ContainerImage.from_registry("amazon/amazon-ecs-sample"),
+                    image=ecs.ContainerImage.from_ecr_repository(
+                        container_repo, "latest"
+                    ),
                     log_driver=ecs.AwsLogDriver(
                         log_group=log_group,
                         stream_prefix="CreditsAvailableBot",
