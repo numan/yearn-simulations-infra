@@ -130,7 +130,8 @@ class YearnSimScheduledTasksInfraStack(cdk.Stack):
                     environment=environment,
                     secrets=container_secrets,
                     command=["brownie", "run", "bribe_bot"],
-                    memory_limit_mib=1024,
+                    cpu=2048,
+                    memory_limit_mib=4096,
                 ),
                 schedule=app_autoscaling.Schedule.cron(
                     minute="0", hour="16"
@@ -154,7 +155,8 @@ class YearnSimScheduledTasksInfraStack(cdk.Stack):
                     environment=environment,
                     secrets=container_secrets,
                     command=["brownie", "run", "ftm_bot"],
-                    memory_limit_mib=1024,
+                    cpu=2048,
+                    memory_limit_mib=4096,
                 ),
                 schedule=app_autoscaling.Schedule.cron(
                     minute="0", hour="0,12"
@@ -178,7 +180,8 @@ class YearnSimScheduledTasksInfraStack(cdk.Stack):
                     environment=environment,
                     secrets=container_secrets,
                     command=["brownie", "run", "ssc_bot"],
-                    memory_limit_mib=1024,
+                    cpu=2048,
+                    memory_limit_mib=4096,
                 ),
                 schedule=app_autoscaling.Schedule.cron(
                     minute="0", hour="0,8,16"
@@ -202,7 +205,8 @@ class YearnSimScheduledTasksInfraStack(cdk.Stack):
                     environment=environment,
                     secrets=container_secrets,
                     command=["brownie", "run", "credits_available"],
-                    memory_limit_mib=1024,
+                    cpu=2048,
+                    memory_limit_mib=4096,
                 ),
                 schedule=app_autoscaling.Schedule.cron(
                     minute="30", hour="16"
