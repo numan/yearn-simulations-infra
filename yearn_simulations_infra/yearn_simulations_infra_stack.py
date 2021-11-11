@@ -83,7 +83,7 @@ class YearnSimScheduledTasksInfraStack(cdk.Stack):
 
         environment = {
             "ENV": "PROD",
-            "USE_DYNAMIC_LOOKUP": "True",
+            "USE_DYNAMIC_LOOKUP": "False",
         }
         container_secrets = {
             "INFURA_ID": ecs.Secret.from_secrets_manager(
@@ -129,7 +129,7 @@ class YearnSimScheduledTasksInfraStack(cdk.Stack):
                     ),
                     environment=environment,
                     secrets=container_secrets,
-                    command=["run.sh", "bribe_bot"],
+                    command=["/usr/src/app/run.sh", "bribe_bot"],
                     cpu=2048,
                     memory_limit_mib=4096,
                 ),
@@ -154,7 +154,7 @@ class YearnSimScheduledTasksInfraStack(cdk.Stack):
                     ),
                     environment=environment,
                     secrets=container_secrets,
-                    command=["run.sh", "ftm_bot"],
+                    command=["/usr/src/app/run.sh", "ftm_bot"],
                     cpu=2048,
                     memory_limit_mib=4096,
                 ),
@@ -179,7 +179,7 @@ class YearnSimScheduledTasksInfraStack(cdk.Stack):
                     ),
                     environment=environment,
                     secrets=container_secrets,
-                    command=["run.sh", "ssc_bot"],
+                    command=["/usr/src/app/run.sh", "ssc_bot"],
                     cpu=2048,
                     memory_limit_mib=4096,
                 ),
@@ -204,7 +204,7 @@ class YearnSimScheduledTasksInfraStack(cdk.Stack):
                     ),
                     environment=environment,
                     secrets=container_secrets,
-                    command=["run.sh", "credits_available"],
+                    command=["/usr/src/app/run.sh", "credits_available"],
                     cpu=2048,
                     memory_limit_mib=4096,
                 ),
