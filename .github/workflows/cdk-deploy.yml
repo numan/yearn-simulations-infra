@@ -26,7 +26,7 @@ jobs:
       - name: Install Packages
         uses: BSFishy/pip-action@v1
         with:
-          requirements: ${{ GITHUB_WORKSPACE }}requirements.txt
+          requirements: ${{ env.GITHUB_WORKSPACE }}requirements.txt
       - name: cdk deploy
         uses: youyo/aws-cdk-github-actions@v2
         with:
