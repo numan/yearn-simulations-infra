@@ -122,9 +122,7 @@ if not vpc_id:
         "Can not deploy without an existing VPC. Please specify which VPC you want to deploy to using the `CDK_DEPLOY_VPC` environment variable."
     )
 
-yearn_simulations_dir = os.environ.get(
-    "YEARN_SIMULATIONS_WORKSPACE", os.environ.get("GITHUB_WORKSPACE")
-)
+yearn_simulations_dir = os.environ.get("YEARN_SIMULATIONS_WORKSPACE")
 if not yearn_simulations_dir:
     raise Exception(
         "Can not find Yearn Simulations workspace. Please specify the workspace environment variable."

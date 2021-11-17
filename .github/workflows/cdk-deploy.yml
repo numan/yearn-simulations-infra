@@ -8,25 +8,30 @@ jobs:
     runs-on: ubuntu-latest
     environment: Numan-Local
     steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          path: main
       - name: Checkout Yearn Simulations Repo
         uses: actions/checkout@v2
         with:
           repository: yearn/yearn-simulations
           ref: ${{ github.event.client_payload.SHA }}
+          path: yearn_simulations
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
           python-version: 3.8
-      - name: Install Packages
+      - name: Install Infrastructure Deployment Packages
         uses: BSFishy/pip-action@v1
         with:
           packages: |
             eth-brownie>=1.17.0
-          requirements: requirements-dev.txt
-      - name: Install Packages
+          requirements: ${{ env.GITHUB_WORKSPACE }}main/requirements-dev.txt
+      - name: Install Yearn Simulation Packages
         uses: BSFishy/pip-action@v1
         with:
-          requirements: ${{ env.GITHUB_WORKSPACE }}requirements.txt
+          requirements: ${{ env.GITHUB_WORKSPACE }}yearn_simulations/requirements.txt
       - name: cdk deploy
         uses: youyo/aws-cdk-github-actions@v2
         with:
@@ -38,3 +43,4 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: 'us-east-1'
+          YEARN_SIMULATIONS_WORKSPACE: ${{ env.GITHUB_WORKSPACE }}yearn_simulations
