@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: Numan-Local
     steps:
-      - name: Checkout
+      - name: Checkout Main Repo
         uses: actions/checkout@v2
         with:
           path: main
@@ -22,11 +22,14 @@ jobs:
         uses: actions/setup-python@v2
         with:
           python-version: 3.8
-      - name: Install Python packages
+      - name: Install Infra Python Requirements
+        working-directory: ${{ env.GITHUB_WORKSPACE }}/main
         run: |
           python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+      - name: Install Python packages
+        run: |
           pip install -r ${{ env.GITHUB_WORKSPACE }}yearn_simulations/requirements.txt
-          pip install -r ${{ env.GITHUB_WORKSPACE }}main/requirements.txt
           pip install eth-brownie>=1.17.0
       - name: cdk deploy
         uses: youyo/aws-cdk-github-actions@v2
