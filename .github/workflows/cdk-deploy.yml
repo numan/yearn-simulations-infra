@@ -23,24 +23,27 @@ jobs:
         with:
           python-version: 3.8
       - name: Install Infra Python Requirements
-        working-directory: ${{ env.GITHUB_WORKSPACE }}main
+        working-directory: main
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
       - name: Install Python packages
         run: |
-          pip install -r ${{ env.GITHUB_WORKSPACE }}yearn_simulations/requirements.txt
+          pip install -r yearn_simulations/requirements.txt
           pip install eth-brownie>=1.17.0
-      - name: cdk deploy
-        uses: youyo/aws-cdk-github-actions@v2
+      - uses: actions/setup-node@v2
         with:
-          cdk_subcommand: 'deploy'
-          cdk_stack: '*'
-          cdk_args: '--require-approval never'
-          actions_comment: false
-          working_dir: '${{ env.GITHUB_WORKSPACE }}main'
+          node-version: '14'
+      - run: npm install -g aws-cdk
+      - name: cdk deploy
+        working-directory: ${{ github.workspace }}main
+        run: |
+          cdk deploy --all --require-approval never
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: 'us-east-1'
-          YEARN_SIMULATIONS_WORKSPACE: ${{ env.GITHUB_WORKSPACE }}yearn_simulations
+          YEARN_SIMULATIONS_WORKSPACE: '${{ github.workspace }}yearn_simulations'
+          CDK_DEPLOY_REGION: 'us-east-1'
+          CDK_DEPLOY_VPC: 'vpc-45b3f922'
+          CDK_DEPLOY_ACCOUNT: '377926405243'
