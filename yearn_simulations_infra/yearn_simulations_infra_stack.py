@@ -1,13 +1,125 @@
 import json
+from typing import Any
 
+import aws_cdk.aws_applicationautoscaling as app_autoscaling
 import aws_cdk.aws_ec2 as ec2
 import aws_cdk.aws_ecr as ecr
 import aws_cdk.aws_ecs as ecs
 import aws_cdk.aws_ecs_patterns as ecs_patterns
-import aws_cdk.aws_applicationautoscaling as app_autoscaling
 import aws_cdk.aws_logs as logs
 import aws_cdk.aws_secretsmanager as secrets
 from aws_cdk import core as cdk
+
+
+from yearn_scheduled_task import YearnScheduledTaskStack
+
+
+class YearnHarvestBotInfraStack(cdk.Stack):
+    def __init__(
+        self,
+        scope: cdk.Construct,
+        construct_id: str,
+        vpc_id: str,
+        log_group: logs.LogGroup,
+        **kwargs,
+    ) -> None:
+        super().__init__(scope, construct_id, **kwargs)
+
+        # The code that defines your stack goes here
+        self._vpc = ec2.Vpc.from_lookup(
+            self,
+            "VPCResource",
+            vpc_id=vpc_id,
+        )
+        self._container_repository = ecr.Repository(self, "YearnHarvestBotRepository")
+        self._container_repository.add_lifecycle_rule(
+            tag_status=ecr.TagStatus.UNTAGGED, max_image_age=cdk.Duration.days(7)
+        )
+
+        self._secrets_manager = secrets.Secret(
+            self,
+            "YearnHarvestBotSecrets",
+            generate_secret_string=secrets.SecretStringGenerator(
+                secret_string_template=json.dumps(
+                    {
+                        "TELEGRAM_CHANNEL_ID": "",
+                        "HARVEST_COLLECTOR_BOT": "",
+                        "DISCORD_SECRET": "",
+                        "INFURA_NODE": "",
+                    }
+                ),
+                generate_string_key="password",  # Needed just to we can provision secrets manager with a template. Not used.
+            ),
+        )
+
+        container_secrets = {
+            "TELEGRAM_CHANNEL_ID": ecs.Secret.from_secrets_manager(
+                self._secrets_manager, "TELEGRAM_CHANNEL_ID"
+            ),
+            "HARVEST_COLLECTOR_BOT": ecs.Secret.from_secrets_manager(
+                self._secrets_manager, "HARVEST_COLLECTOR_BOT"
+            ),
+            "DISCORD_SECRET": ecs.Secret.from_secrets_manager(
+                self._secrets_manager, "DISCORD_SECRET"
+            ),
+            "INFURA_NODE": ecs.Secret.from_secrets_manager(
+                self._secrets_manager, "INFURA_NODE"
+            ),
+        }
+
+        self._environment = {
+            "ENVIRONMENT": "PROD",
+            "DELAY_MINUTES": "20",
+            "MINUTES": "20",
+        }
+
+        # General ECS Cluster
+        self._yearn_harvest_bot_ecs_cluster = (
+            self._create_yearn_harvest_bot_ecs_cluster(self._vpc)
+        )
+
+        # All scheduled tasks:
+        scheduled_tasks = [
+            ecs_patterns.ScheduledFargateTask(
+                self,
+                "HarvestBotTask",
+                cluster=self._yearn_harvest_bot_ecs_cluster,
+                scheduled_fargate_task_image_options=ecs_patterns.ScheduledFargateTaskImageOptions(
+                    image=ecs.ContainerImage.from_ecr_repository(
+                        self._container_repository, "latest"
+                    ),
+                    log_driver=ecs.AwsLogDriver(
+                        log_group=log_group,
+                        stream_prefix="HarvestBotTask",
+                        mode=ecs.AwsLogDriverMode.NON_BLOCKING,
+                    ),
+                    environment=self._environment,
+                    secrets=container_secrets,
+                    command=["ts-node", "runner.ts"],
+                    cpu=2048,
+                    memory_limit_mib=4096,
+                ),
+                schedule=app_autoscaling.Schedule.cron(
+                    minute="20",
+                ),  # Every day at 4pm
+                platform_version=ecs.FargatePlatformVersion.LATEST,
+                subnet_selection=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC),
+            )
+        ]
+
+        # Permissions
+        for scheduled_task in scheduled_tasks:
+            self._container_repository.grant_pull(
+                scheduled_task.task_definition.obtain_execution_role()
+            )
+
+    def _create_yearn_harvest_bot_ecs_cluster(self, vpc: ec2.IVpc):
+        return ecs.Cluster(
+            self,
+            "YearnHarvestBotCluster",
+            enable_fargate_capacity_providers=True,
+            vpc=vpc,
+        )
 
 
 class SharedStack(cdk.Stack):
@@ -40,7 +152,8 @@ class YearnSimScheduledTasksInfraStack(cdk.Stack):
         vpc_id: str,
         log_group: logs.LogGroup,
         container_repo: ecr.Repository,
-        **kwargs
+        scheduled_scripts: Any,
+        **kwargs,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
@@ -59,17 +172,7 @@ class YearnSimScheduledTasksInfraStack(cdk.Stack):
                     {
                         "INFURA_ID": "",
                         "WEB3_INFURA_PROJECT_ID": "",
-                        ## Bribe Bot
-                        "TELEGRAM_YFI_DEV_BOT": "",
-                        "TELEGRAM_CHAT_ID_BRIBE": "",
-                        ## FTM Bot
-                        "FTM_BOT_KEY": "",
-                        "FTM_GROUP": "",
-                        ## SSC Bot
-                        "SSC_BOT_KEY": "",
-                        "PROD_GROUP": "",
-                        ## Credit Available
-                        "TELEGRAM_CHAT_ID_CREDIT_TRACKER": "",
+                        "TELEGRAM_BOT_KEY": "",
                     }
                 ),
                 generate_string_key="password",  # Needed just to we can provision secrets manager with a template. Not used.
@@ -81,140 +184,61 @@ class YearnSimScheduledTasksInfraStack(cdk.Stack):
             self._vpc
         )
 
-        environment = {
+        base_environment = {
             "ENV": "PROD",
-            "USE_DYNAMIC_LOOKUP": "False",
         }
-        container_secrets = {
+        base_container_secrets = {
             "INFURA_ID": ecs.Secret.from_secrets_manager(
                 self._secrets_manager, "INFURA_ID"
             ),
             "WEB3_INFURA_PROJECT_ID": ecs.Secret.from_secrets_manager(
                 self._secrets_manager, "WEB3_INFURA_PROJECT_ID"
             ),
-            "TELEGRAM_YFI_DEV_BOT": ecs.Secret.from_secrets_manager(
-                self._secrets_manager, "TELEGRAM_YFI_DEV_BOT"
-            ),
-            "TELEGRAM_CHAT_ID_BRIBE": ecs.Secret.from_secrets_manager(
-                self._secrets_manager, "TELEGRAM_CHAT_ID_BRIBE"
-            ),
-            "FTM_BOT_KEY": ecs.Secret.from_secrets_manager(
-                self._secrets_manager, "FTM_BOT_KEY"
-            ),
-            "SSC_BOT_KEY": ecs.Secret.from_secrets_manager(
-                self._secrets_manager, "SSC_BOT_KEY"
-            ),
-            "PROD_GROUP": ecs.Secret.from_secrets_manager(
-                self._secrets_manager, "PROD_GROUP"
-            ),
-            "TELEGRAM_CHAT_ID_CREDIT_TRACKER": ecs.Secret.from_secrets_manager(
-                self._secrets_manager, "TELEGRAM_CHAT_ID_CREDIT_TRACKER"
+            "TELEGRAM_BOT_KEY": ecs.Secret.from_secrets_manager(
+                self._secrets_manager, "TELEGRAM_BOT_KEY"
             ),
         }
 
         # All scheduled tasks:
-        scheduled_tasks = [
-            ecs_patterns.ScheduledFargateTask(
+        scheduled_tasks = []
+        for scheduled_script in scheduled_scripts:
+            script_name = scheduled_script.script.__module__.split(".")[-1]
+
+            # Add any additional environment variables
+            environment = base_environment.copy()
+            environment["TELEGRAM_CHAT_ID"] = scheduled_script.telegram_chat_id
+            if scheduled_script.environment:
+                environment.update(scheduled_script.environment)
+
+            # Add additional secrets to the container
+            container_secrets = base_container_secrets.copy()
+            additional_container_secrets = {
+                secret_name.upper(): ecs.Secret.from_secrets_manager(
+                    self._secrets_manager, secret_name.upper()
+                )
+                for secret_name in scheduled_script.secrets
+            }
+            container_secrets.update(additional_container_secrets)
+
+            YearnScheduledTaskStack(
                 self,
-                "BribeBotTask",
-                cluster=self._yearn_sim_tasks_ecs_cluster,
-                scheduled_fargate_task_image_options=ecs_patterns.ScheduledFargateTaskImageOptions(
-                    image=ecs.ContainerImage.from_ecr_repository(
-                        container_repo, "latest"
-                    ),
-                    log_driver=ecs.AwsLogDriver(
-                        log_group=log_group,
-                        stream_prefix="BribeBotTask",
-                        mode=ecs.AwsLogDriverMode.NON_BLOCKING,
-                    ),
-                    environment=environment,
-                    secrets=container_secrets,
-                    command=["/usr/src/app/run.sh", "bribe_bot"],
-                    cpu=2048,
-                    memory_limit_mib=4096,
-                ),
+                f"ScheduledTask{script_name}",
+                script_name=script_name,
+                environment=environment,
+                secrets=container_secrets,
                 schedule=app_autoscaling.Schedule.cron(
-                    minute="0", hour="16"
-                ),  # Every day at 4pm
-                platform_version=ecs.FargatePlatformVersion.LATEST,
-                subnet_selection=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC),
-            ),
-            ecs_patterns.ScheduledFargateTask(
-                self,
-                "FTMBot",
-                cluster=self._yearn_sim_tasks_ecs_cluster,
-                scheduled_fargate_task_image_options=ecs_patterns.ScheduledFargateTaskImageOptions(
-                    image=ecs.ContainerImage.from_ecr_repository(
-                        container_repo, "latest"
-                    ),
-                    log_driver=ecs.AwsLogDriver(
-                        log_group=log_group,
-                        stream_prefix="FTMBot",
-                        mode=ecs.AwsLogDriverMode.NON_BLOCKING,
-                    ),
-                    environment=environment,
-                    secrets=container_secrets,
-                    command=["/usr/src/app/run.sh", "ftm_bot"],
-                    cpu=2048,
-                    memory_limit_mib=4096,
+                    day=scheduled_script.day,
+                    hour=scheduled_script.hour,
+                    minute=scheduled_script.minute,
+                    month=scheduled_script.month,
+                    week_day=scheduled_script.week_day,
+                    year=scheduled_script.year,
                 ),
-                schedule=app_autoscaling.Schedule.cron(
-                    minute="0", hour="0,12"
-                ),  # Every day at midnight and noon
-                platform_version=ecs.FargatePlatformVersion.LATEST,
-                subnet_selection=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC),
-            ),
-            ecs_patterns.ScheduledFargateTask(
-                self,
-                "SSCBot",
+                log_group=log_group,
+                container_repo=container_repo,
                 cluster=self._yearn_sim_tasks_ecs_cluster,
-                scheduled_fargate_task_image_options=ecs_patterns.ScheduledFargateTaskImageOptions(
-                    image=ecs.ContainerImage.from_ecr_repository(
-                        container_repo, "latest"
-                    ),
-                    log_driver=ecs.AwsLogDriver(
-                        log_group=log_group,
-                        stream_prefix="SSCBot",
-                        mode=ecs.AwsLogDriverMode.NON_BLOCKING,
-                    ),
-                    environment=environment,
-                    secrets=container_secrets,
-                    command=["/usr/src/app/run.sh", "ssc_bot"],
-                    cpu=2048,
-                    memory_limit_mib=4096,
-                ),
-                schedule=app_autoscaling.Schedule.cron(
-                    minute="0", hour="0,8,16"
-                ),  # Every day at midnight, 8am and 4pm
-                platform_version=ecs.FargatePlatformVersion.LATEST,
-                subnet_selection=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC),
-            ),
-            ecs_patterns.ScheduledFargateTask(
-                self,
-                "CreditsAvailableBot",
-                cluster=self._yearn_sim_tasks_ecs_cluster,
-                scheduled_fargate_task_image_options=ecs_patterns.ScheduledFargateTaskImageOptions(
-                    image=ecs.ContainerImage.from_ecr_repository(
-                        container_repo, "latest"
-                    ),
-                    log_driver=ecs.AwsLogDriver(
-                        log_group=log_group,
-                        stream_prefix="CreditsAvailableBot",
-                        mode=ecs.AwsLogDriverMode.NON_BLOCKING,
-                    ),
-                    environment=environment,
-                    secrets=container_secrets,
-                    command=["/usr/src/app/run.sh", "credits_available"],
-                    cpu=2048,
-                    memory_limit_mib=4096,
-                ),
-                schedule=app_autoscaling.Schedule.cron(
-                    minute="30", hour="16"
-                ),  # Every day at midnight, 8am and 4pm
-                platform_version=ecs.FargatePlatformVersion.LATEST,
-                subnet_selection=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC),
-            ),
-        ]
+                **kwargs,
+            )
 
         # Permissions
         for scheduled_task in scheduled_tasks:
@@ -239,7 +263,7 @@ class YearnSimulationsInfraStack(cdk.Stack):
         vpc_id: str,
         log_group: logs.LogGroup,
         container_repo: ecr.Repository,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
