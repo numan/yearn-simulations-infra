@@ -36,14 +36,14 @@ jobs:
           node-version: '14'
       - run: npm install -g aws-cdk
       - name: cdk deploy
-        working-directory: ${{ github.workspace }}main
+        working-directory: ${{ github.workspace }}/main
         run: |
           cdk deploy --all --require-approval never
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: 'us-east-1'
-          YEARN_SIMULATIONS_WORKSPACE: '${{ github.workspace }}yearn_simulations'
+          YEARN_SIMULATIONS_WORKSPACE: '${{ github.workspace }}/yearn_simulations'
           CDK_DEPLOY_REGION: 'us-east-1'
           CDK_DEPLOY_VPC: 'vpc-45b3f922'
           CDK_DEPLOY_ACCOUNT: '377926405243'
