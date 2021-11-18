@@ -82,16 +82,26 @@ The infrastructure in this repository requires a VPC with at least one public su
 
 You can use the `cdk-deploy-to.sh` script to deploy the infrastructure for the first time and any subsequent updates to the infrastructure.
 
+**Note:** Some of the infrastructure is dynamically configure based on what *Scheduled Scripts* have been configured in the [yearn-simulations](https://github.com/yearn/yearn-simulations). You must have a local copy of this repository during the initial provisioning. 
+
+Install all the requirements:
+
+```bash
+> pip install -r requirements-dev.txt  # Install cdk requirements
+> pip install -r /Users/gazumps/Repos/yearn-simulations/requirements.txt  # Install requirements from the yearn-simulations project
+> pip install eth-brownie>=0.17.0 # Install brownie
+```
+
 Usage:
 
 ```bash
-> ./cdk-deploy-to.sh <AWS Account ID> <AWS Region> <AWS VPC ID>
+> YEARN_SIMULATIONS_WORKSPACE="/Users/gazumps/Repos/yearn-simulations" ./cdk-deploy-to.sh <AWS Account ID> <AWS Region> <AWS VPC ID>
 ```
 
 Example:
 
 ```bash
-> ./cdk-deploy-to.sh 1111111111 us-east-1 vpc-11111111
+> YEARN_SIMULATIONS_WORKSPACE="/Users/gazumps/Repos/yearn-simulations" ./cdk-deploy-to.sh 1111111111 us-east-1 vpc-11111111
 ```
 
 ## Initializing Secrets
@@ -107,16 +117,13 @@ One of the resources created during the creation process is a **AWS Secrets Stor
 And the following secrets for the scheduled bots:
 1. INFURA_ID
 2. WEB3_INFURA_PROJECT_ID
-3. TELEGRAM_YFI_DEV_BOT
-4. TELEGRAM_CHAT_ID_BRIBE
-5. FTM_BOT_KEY
-6. FTM_GROUP
-7. SSC_BOT_KEY
-8. PROD_GROUP
-9. TELEGRAM_CHAT_ID_CREDIT_TRACKER
-## Deploy
+3. TELEGRAM_BOT_KEY
+## GitHub Actions
 
-Follow the instructions in https://github.com/yearn/yearn-simulations repo.
+To configure GitHub Actions, you need to create an environment named `production` [here](https://github.com/yearn/yearn-simulations/settings/environments) and add the following secrets:
+
+1. `AWS_ACCESS_KEY_ID`
+2. `AWS_SECRET_ACCESS_KEY`
 
 ## Destroying The Environment
 

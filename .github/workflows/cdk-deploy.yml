@@ -6,7 +6,7 @@ on:
 jobs:
   clone_yearn_simulations:
     runs-on: ubuntu-latest
-    environment: Numan-Local
+    environment: production
     steps:
       - name: Checkout Main Repo
         uses: actions/checkout@v2
