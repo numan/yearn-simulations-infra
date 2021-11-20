@@ -2,6 +2,10 @@ name: Deploy to cdk
 on:
   repository_dispatch:
     types: [deploy_infra]
+  push:
+    branches:
+          - main
+          - master
 
 jobs:
   clone_yearn_simulations:
