@@ -101,7 +101,7 @@ Usage:
 Example:
 
 ```bash
-> YEARN_SIMULATIONS_WORKSPACE="/Users/gazumps/Repos/yearn-simulations" ./cdk-deploy-to.sh 1111111111 us-east-1 vpc-11111111
+> YEARN_SIMULATIONS_WORKSPACE="/Users/gazumps/Repos/yearn-simulations" ./cdk-deploy-to.sh 1111111111 us-east-1 vpc-11111111 --require-approval never
 ```
 
 ## Initializing Secrets
@@ -130,5 +130,5 @@ To configure GitHub Actions, you need to create an environment named `production
 You can destroy the environment using CDK:
 
 ```bash
-> CDK_DEPLOY_VPC="vpc-11111111" CDK_DEPLOY_ACCOUNT="1111111111" CDK_DEPLOY_REGION="us-east-1" cdk destroy
+> YEARN_SIMULATIONS_WORKSPACE="/Users/gazumps/Repos/yearn-simulations" CDK_DEPLOY_VPC="vpc-11111111" CDK_DEPLOY_ACCOUNT="1111111111" CDK_DEPLOY_REGION="us-east-1" cdk destroy --all
 ```
